@@ -1,0 +1,72 @@
+# Global configuration
+global:
+  scrape_interval: 5s # Scrape targets every 5 seconds.
+
+# Alerting configuration
+# This tells Prometheus where to send alerts. Since it's in the same
+# container, we use localhost.
+
+# load all .yml files from your new rules directory
+rule_files:
+    - "/etc/prometheus/rules/*.yml"
+
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - 'localhost:9093'
+
+# A list of scrape jobs
+scrape_configs:
+  # Job 1: Scrape Prometheus itself
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # Job 2: Scrape Alertmanager
+  - job_name: "alertmanager"
+    static_configs:
+      - targets: ["localhost:9093"]
+
+  # Job 3: Scrape your PVE EXPORTER
+  - job_name: "pve"
+    static_configs:
+      - targets: 
+        - 192.168.1.10:9221  # PVE
+    metrics_path: /pve
+    params:
+      module: [default]
+      cluster: ['1']
+      node: ['1']
+      qemu: ['1']
+      lxc: ['1']
+  
+  # Job 4: PVE Node Exporter
+  - job_name: 'pve-node'
+    static_configs:
+      - targets:
+          - '192.168.1.10:9100'  # PVE
+
+  # Job 5: Blackbox Exporter
+  - job_name: 'blackbox'
+    metrics_path: /probe
+    params:
+      module: [icmp]  # Use the icmp module
+    static_configs:
+      - targets:
+        - 8.8.8.8    # Google
+        - 1.1.1.1    # Cloudflare
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: '192.168.1.10:9115'
+
+  # Job 6: Guests Node Exporter
+  # - job_name: 'pve-guests'
+  #   static_configs:
+  #     - targets:
+  #         - '192.168.20.10:9100'  # PVE

@@ -1,0 +1,59 @@
+global:
+  # Telegram API endpoint
+  telegram_api_url: 'https://api.telegram.org'
+
+route:
+  receiver: 'telegram-alerts'
+  group_by: ['alertname', 'severity']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+
+receivers:
+- name: 'telegram-alerts'
+  telegram_configs:
+  - bot_token: 'HIDDEN'
+    chat_id: 885032930
+    api_url: 'https://api.telegram.org'
+    parse_mode: 'HTML'
+    disable_notifications: false
+    send_resolved: true   # Send notification even when alert is resolved without firing
+    message: |
+      {{ if eq .Status "firing" -}}
+      🔥 <b>ALERT NOTIFICATION</b>: {{ len .Alerts }} alert(s) firing
+        {{ if eq .CommonLabels.severity "critical" }}
+      🔴 <b>CRITICAL ALERT</b>: {{ len .Alerts }} alert(s) firing
+        {{ else if eq .CommonLabels.severity "warning" }}
+      🟡 <b>WARNING ALERT</b>: {{ len .Alerts }} alert(s) firing
+        {{ end }}
+      <b>Status:</b> FIRING
+      <b>Alert:</b> {{ .CommonLabels.alertname }}
+      <b>Severity:</b> {{ .CommonLabels.severity | toUpper }}
+      <b>Summary:</b> {{ .CommonAnnotations.summary }}
+
+      <b>Details:</b>
+      {{ range .Alerts -}}
+      • <b>System:</b> {{ if .Labels.name }}{{ .Labels.name }}{{ else }}{{ .Labels.instance }}{{ end }}
+      • <b>Started:</b> {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+      • {{ .Annotations.description }}
+
+      {{ end -}}
+      {{ else if eq .Status "resolved" -}}
+      ✅ <b>RESOLVED ALERTS</b>: {{ len .Alerts }} alert(s) resolved
+
+      <b>Status:</b> RESOLVED
+      <b>Alert:</b> {{ .CommonLabels.alertname }}
+      <b>Severity:</b> {{ .CommonLabels.severity | toUpper }}
+
+      <b>Details:</b>
+      {{ range .Alerts }}
+      • <b>System:</b> {{ if .Labels.name }}{{ .Labels.name }}{{ else }}{{ .Labels.instance }}{{ end }}
+      • <b>Started:</b> {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+      • <b>Ended:</b> {{ .EndsAt.Format "2006-01-02 15:04:05" }}
+        {{ if .Annotations.description_resolved }}
+      {{ .Annotations.description_resolved -}}
+        {{ else }}
+        {{ .Annotations.description -}}
+        {{ end -}}
+      {{ end -}}
+      {{ end -}}

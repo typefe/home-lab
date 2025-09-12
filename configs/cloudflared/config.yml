@@ -1,0 +1,28 @@
+tunnel: proxmox-tunnel
+credentials-file: /root/.cloudflared/2aa0bec4-350d-47b9-a45b-5b8faf45d496.json
+
+ingress:
+  # PVE
+  - hostname: pve.typefe.pro
+    service: https://192.168.1.10:8006
+    originRequest:
+      noTLSVerify: true
+
+  # ChangeDetection.io
+  - hostname: cd.typefe.pro
+    service: http://192.168.20.50:5000
+
+  # Grafana
+  - hostname: graf.typefe.pro
+    service: http://192.168.20.15:3000
+
+  # Prometheus
+  - hostname: pro.typefe.pro
+    service: http://192.168.20.15:9090
+
+  # AlertManager
+  - hostname: alert.typefe.pro
+    service: http://192.168.20.15:9093
+
+  # Catch-all
+  - service: http_status:404

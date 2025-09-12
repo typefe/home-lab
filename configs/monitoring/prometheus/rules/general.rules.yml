@@ -1,0 +1,150 @@
+groups:
+# General system alerts
+- name: general-alerts
+  rules:
+  # Alert on too many restarts
+  - alert: TooManyRestarts
+    expr: changes(process_start_time_seconds[15m]) > 2
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Too Many Restarts"
+      description: "The process '{{ $labels.job }}' on instance '{{ $labels.instance }}' has restarted more than 2 times in the last 15 minutes."
+      description_resolved: "The process '{{ $labels.job }}' on instance '{{ $labels.instance }}' has stabilized."
+  
+  # Alert if the internet connection is down (using blackbox exporter)
+  - alert: InternetDown
+    expr: count by (instance) (probe_success{job="blackbox"} == 0) > 0
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Internet connection is down"
+      description: "Blackbox exporter is unable to ping {{ $labels.instance }}."
+      description_resolved: "Internet connection to {{ $labels.instance }} is restored."
+
+# Proxmox VE related alerts
+- name: proxmox-alerts
+  rules:
+  # Alert if the Proxmox Exporter target is down
+  - alert: ProxmoxExporterDown
+    expr: up{job="pve"} == 0
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Proxmox Exporter Down"
+      description: "The proxmox-exporter target {{ $labels.instance }} has been down for more than 5 minutes."
+      description_resolved: "The proxmox-exporter target {{ $labels.instance }} is back up."
+
+  # Alert if the Proxmox Node Exporter target is down
+  - alert: ProxmoxNodeExporterDown
+    expr: up{job="pve-node"} == 0
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Proxmox Node Exporter Down"
+      description: "The node-exporter target {{ $labels.instance }} has been down for more than 5 minutes."
+      description_resolved: "The node-exporter target {{ $labels.instance }} is back up."
+
+  # Alert on high storage usage (Warning)
+  - alert: ProxmoxStorageWarning
+    expr: ((pve_disk_usage_bytes / pve_disk_size_bytes) * 100 > 80) * on(id) group_left(name) pve_guest_info
+    for: 15m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Storage Warning"
+      description: "System '{{ $labels.name }}' storage is {{ $value | printf \"%.2f\" }}% full. Please investigate."
+      description_resolved: "System '{{ $labels.name }}' storage is back to normal levels at {{ $value | printf \"%.2f\" }}% full."
+
+  # Alert on high storage usage (Critical)
+  - alert: ProxmoxStorageCritical
+    expr: ((pve_disk_usage_bytes / pve_disk_size_bytes) * 100 > 90) * on(id) group_left(name) pve_guest_info
+    for: 15m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Storage Critical"
+      description: "System '{{ $labels.name }}' storage is {{ $value | printf \"%.2f\" }}% full! IMMEDIATE ACTION REQUIRED."
+      description_resolved: "System '{{ $labels.name }}' storage is back to normal levels at {{ $value | printf \"%.2f\" }}% full."
+
+# Node Exporter related alerts
+- name: node-exporter-rules
+  rules:
+  # Alert if the Node Exporter or Proxmox Node Exporter target is down
+  - alert: NodeExporterDown
+    expr: up{job=~"pve-node|node-exporter"} == 0
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Node Exporter Down"
+      description: "The node-exporter target {{ $labels.instance }} has been down for more than 5 minutes."
+      description_resolved: "The node-exporter target {{ $labels.instance }} is back up."
+
+  - alert: HighSensorTemperatureWarning
+    expr: avg_over_time(node_hwmon_temp_celsius{job="pve-node"}[1m]) > 70
+    for: 1m
+    labels:
+      severity: warning
+    annotations:
+      summary: "High Sensor Temperature (Warning)"
+      description: "The sensor '{{ $labels.sensor }}' on host {{ $labels.instance }} has had an average temperature above 70°C for the last 2 minutes. Current value is {{ $value | printf \"%.2f\" }}°C."
+      description_resolved: "The sensor '{{ $labels.sensor }}' on host {{ $labels.instance }} has returned to normal levels at {{ $value | printf \"%.2f\" }}°C."
+
+  - alert: HighSensorTemperatureCritical
+    expr: avg_over_time(node_hwmon_temp_celsius{job="pve-node"}[1m]) > 80
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      summary: "High Sensor Temperature (Critical)"
+      description: "The sensor '{{ $labels.sensor }}' on host {{ $labels.instance }} has had an average temperature above 80°C for the last 2 minutes. This is critical. Current value is {{ $value | printf \"%.2f\" }}°C."
+      description_resolved: "The sensor '{{ $labels.sensor }}' on host {{ $labels.instance }} has returned to normal levels at {{ $value | printf \"%.2f\" }}°C."
+    
+  # Alert on Recent Reboots
+  - alert: RecentReboot
+    expr: time() - node_boot_time_seconds < 600
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Recent Reboot Detected"
+      description: "The system {{ $labels.instance }} has been rebooted within the last 10 minutes."
+      description_resolved: "The system {{ $labels.instance }} has been rebooted within the last 10 minutes."
+  
+  # Alert on High CPU Usage
+  - alert: HighCPUUsage
+    expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "High CPU Usage"
+      description: "The CPU usage on {{ $labels.instance }} has been above 80% for the last 5 minutes. Current usage is {{ $value | printf \"%.2f\" }}%."
+      description_resolved: "The CPU usage on {{ $labels.instance }} has returned to normal levels at {{ $value | printf \"%.2f\" }}%."
+
+  # Alert on High Memory Usage
+  - alert: HighMemoryUsage
+    expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100 > 80
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "High Memory Usage"
+      description: "The memory usage on {{ $labels.instance }} has been above 80% for the last 5 minutes. Current usage is {{ $value | printf \"%.2f\" }}%."
+      description_resolved: "The memory usage on {{ $labels.instance }} has returned to normal levels at {{ $value | printf \"%.2f\" }}%."
+    
+  # Alert on unusual Network Traffic
+  - alert: UnusualNetworkTraffic
+    expr: rate(node_network_receive_bytes_total[5m]) > 10000000 or rate(node_network_transmit_bytes_total[5m]) > 10000000
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Unusual Network Traffic"
+      description: "The network traffic on {{ $labels.instance }} has exceeded 10MB/s in the last 5 minutes."
+      description_resolved: "The network traffic on {{ $labels.instance }} has returned to normal levels."
