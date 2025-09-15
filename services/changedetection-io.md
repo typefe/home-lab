@@ -1,6 +1,3 @@
-## 🛠️ Service Installations
-Now that we have a secure foundation, let's install some useful services. We'll start with ChangeDetection.io as an example of how to deploy services in your home lab.
-
 ### ChangeDetection.io - Website Change Monitoring
 ChangeDetection.io is a powerful tool for monitoring websites for changes. It's perfect for tracking price changes, content updates, or availability notifications.
 

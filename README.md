@@ -9,6 +9,12 @@ This comprehensive guide will walk you through building a complete home lab infr
 - [Network Architecture and pfSense Setup](./network-and-pfsense.md)
 - [Remote Access with Cloudflare Tunnels](./remote-access-cloudflare.md)
 - [Zero Trust Security Implementation](./zero-trust-security.md)
-- [Service Installations](./service-installations.md)
 - [Maintenance and Logging](./maintenance-and-logging.md)
 - [Monitoring Your Home Lab](./monitoring.md)
+
+## 🛠️ Services
+
+Here are the services I am running in my home lab. Each service has its own installation guide.
+
+- [ChangeDetection.io](./services/changedetection-io.md)
+
