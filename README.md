@@ -17,4 +17,5 @@ This comprehensive guide will walk you through building a complete home lab infr
 Here are the services I am running in my home lab. Each service has its own installation guide.
 
 - [ChangeDetection.io](./services/changedetection-io.md)
+- [Nextcloud](./services/nextcloud.md)
 
