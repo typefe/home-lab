@@ -18,4 +18,5 @@ Here are the services I am running in my home lab. Each service has its own inst
 
 - [ChangeDetection.io](./services/changedetection-io.md)
 - [Nextcloud](./services/nextcloud.md)
+- [Transmission](./services/transmission.md)
 
