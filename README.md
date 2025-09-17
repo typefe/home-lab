@@ -1,4 +1,7 @@
 # 🏠 Complete Home Lab Setup Guide
+
+![Home Lab](./resources/main.jpg)
+
 This comprehensive guide will walk you through building a complete home lab infrastructure using Proxmox as the virtualization platform, pfSense for network security and routing, and Cloudflare tunnels for secure remote access.
 
 ## 📋 Table of Contents
