@@ -6,6 +6,7 @@ This comprehensive guide will walk you through building a complete home lab infr
 - [Environment Preparation](./environment-preparation.md)
 - [Proxmox Installation and Initial Setup](./proxmox-installation.md)
 - [Proxmox Backup Guide](./proxmox-backup-guide.md)
+- [PVE Bind-Mount Guide](./bind-mount.md)
 - [Basic Security and SSH Configuration](./basic-security-and-ssh.md)
 - [Network Architecture and pfSense Setup](./network-and-pfsense.md)
 - [Remote Access with Cloudflare Tunnels](./remote-access-cloudflare.md)
@@ -19,5 +20,6 @@ Here are the services I am running in my home lab. Each service has its own inst
 
 - [ChangeDetection.io](./services/changedetection-io.md)
 - [Nextcloud](./services/nextcloud.md)
-- [Transmission](./services/transmission.md)
+- ~~[Transmission](./services/transmission.md)~~
+- [qBittorrent](./services/qbittorrent.md)
 
