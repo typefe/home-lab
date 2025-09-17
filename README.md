@@ -25,4 +25,5 @@ Here are the services I am running in my home lab. Each service has its own inst
 - [Nextcloud](./services/nextcloud.md)
 - ~~[Transmission](./services/transmission.md)~~
 - [qBittorrent](./services/qbittorrent.md)
+- [Jellyfin](./services/jellyfin.md)
 
