@@ -13,6 +13,30 @@ We will leverage this mapping to create a "shared" group that works across multi
 
 ## Step-by-Step Solution
 
+### Step 0: Create the Bind Mount
+
+Before configuring permissions, you must first create the bind mount. This is done from the Proxmox VE host's shell.
+
+The command follows this format:
+
+```bash
+pct set <container-id> -mp<mount-point-id> <host-path>,mp=<container-path>
+```
+
+-   `<container-id>`: The ID of your LXC container (e.g., `101`).
+-   `<mount-point-id>`: A unique number for the mount point (e.g., `0`).
+-   `<host-path>`: The absolute path on the Proxmox host (e.g., `/mnt/DATA/DATA`).
+-   `<container-path>`: The path inside the container where the host directory will be mounted (e.g., `/mnt/media`).
+
+**Example:**
+
+```bash
+# On the Proxmox Host shell
+pct set 101 -mp0 /mnt/DATA/DATA,mp=/mnt/media
+```
+
+This command mounts the host's `/mnt/DATA/DATA` directory to `/mnt/media` inside container `101`.
+
 ### Step 1: Create a Shared Group in an LXC Container
 
 First, decide on a common group and GID. In this example, we'll use the group `media` with GID `1010`.
