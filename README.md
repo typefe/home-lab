@@ -5,6 +5,7 @@ This comprehensive guide will walk you through building a complete home lab infr
 - [Prerequisites and Planning](./prerequisites-and-planning.md)
 - [Environment Preparation](./environment-preparation.md)
 - [Proxmox Installation and Initial Setup](./proxmox-installation.md)
+- [Proxmox Backup Guide](./proxmox-backup-guide.md)
 - [Basic Security and SSH Configuration](./basic-security-and-ssh.md)
 - [Network Architecture and pfSense Setup](./network-and-pfsense.md)
 - [Remote Access with Cloudflare Tunnels](./remote-access-cloudflare.md)
