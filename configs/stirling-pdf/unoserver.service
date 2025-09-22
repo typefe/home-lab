@@ -1,0 +1,15 @@
+[Unit]
+Description=UnoServer Service
+After=network.target
+
+[Service]
+Environment="JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64"
+Environment="PATH=/usr/lib/jvm/java-17-openjdk-amd64/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+ExecStart=/usr/local/bin/unoserver --interface 127.0.0.1 --port 2003
+Restart=always
+RestartSec=5
+User=stirling
+Group=stirling
+
+[Install]
+WantedBy=multi-user.target

@@ -96,13 +96,13 @@ groups:
       description_resolved: "The sensor '{{ $labels.sensor }}' on host {{ $labels.instance }} has returned to normal levels at {{ $value | printf \"%.2f\" }}°C."
 
   - alert: HighSensorTemperatureCritical
-    expr: avg_over_time(node_hwmon_temp_celsius{job="pve-node"}[1m]) > 80
+    expr: avg_over_time(node_hwmon_temp_celsius{job="pve-node"}[1m]) > 75
     for: 1m
     labels:
       severity: critical
     annotations:
       summary: "High Sensor Temperature (Critical)"
-      description: "The sensor '{{ $labels.sensor }}' on host {{ $labels.instance }} has had an average temperature above 80°C for the last 2 minutes. This is critical. Current value is {{ $value | printf \"%.2f\" }}°C."
+      description: "The sensor '{{ $labels.sensor }}' on host {{ $labels.instance }} has had an average temperature above 75°C for the last 2 minutes. This is critical. Current value is {{ $value | printf \"%.2f\" }}°C."
       description_resolved: "The sensor '{{ $labels.sensor }}' on host {{ $labels.instance }} has returned to normal levels at {{ $value | printf \"%.2f\" }}°C."
     
   # Alert on Recent Reboots

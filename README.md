@@ -26,4 +26,5 @@ Here are the services I am running in my home lab. Each service has its own inst
 - ~~[Transmission](./services/transmission.md)~~
 - [qBittorrent](./services/qbittorrent.md)
 - [Jellyfin](./services/jellyfin.md)
+- [Stirling PDF](./services/stirlingpdf.md)
 

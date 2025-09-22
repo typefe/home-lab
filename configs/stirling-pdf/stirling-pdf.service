@@ -1,0 +1,18 @@
+[Unit]
+Description=Stirling PDF Service
+After=network.target unoserver.service
+Requires=unoserver.service
+
+[Service]
+Type=simple
+User=stirling
+Group=stirling
+WorkingDirectory=/opt/stirling-pdf
+ExecStart=/usr/bin/java -jar /opt/stirling-pdf/Stirling-PDF.jar
+Environment="JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64"
+SuccessExitStatus=143
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
