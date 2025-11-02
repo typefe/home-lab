@@ -14,6 +14,7 @@ This comprehensive guide will walk you through building a complete home lab infr
 - [Network Architecture and pfSense Setup](./network-and-pfsense.md)
 - [Remote Access with Cloudflare Tunnels](./remote-access-cloudflare.md)
 - [Zero Trust Security Implementation](./zero-trust-security.md)
+- [Securing Services with mTLS](./mTLS-cert.md)
 - [Maintenance and Logging](./maintenance-and-logging.md)
 - [Monitoring Your Home Lab](./monitoring.md)
 
