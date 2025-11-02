@@ -378,47 +378,7 @@ You can configure a Cloudflare Access policy that requires a one-time PIN sent t
 
 ### 2. Using the WARP Client (for Mobile & Desktop Apps)
 
-Mobile apps often don't support web-based login prompts from services like Cloudflare Access. The WARP client solves this by creating a secure tunnel directly from your device to Cloudflare's network.
-
-#### Step 1: Enable WARP Checks in Zero Trust
-
-1.  **Enable the Network Proxy:**
-    - In your Zero Trust dashboard, go to **Settings > Network**.
-    - Ensure that **Proxy** is enabled.
-
-2.  **Activate the WARP Client Check:**
-    - Go to **Settings > WARP Client**.
-    - Under **WARP client checks**, click **Add new**.
-    - Select "WARP" and give it a name like `WARP Check`.
-
-3.  **Set Up Device Enrollment Rules:**
-    - Go to **Settings > WARP Client** and click **Manage** under **Device enrollment**.
-    - Add a rule to allow your email address to enroll devices.
-
-#### Step 2: Set up the WARP Client on Your Device
-
-1.  **Install the App:** Download the "**1.1.1.1: Faster Internet**" app.
-2.  **Log in to Zero Trust:**
-    - In the app, go to **Settings > Account > Login with Cloudflare for Teams**.
-    - Enter your organization's team name (found under **Settings > General** in the Zero Trust dashboard).
-    - Complete the one-time login with your email.
-
-#### Step 3: Create the Access Policy
-
-1.  In Zero Trust, go to **Access > Applications** and edit the policy for your Nextcloud application.
-2.  **Create a "Bypass for WARP" Policy:**
-    - Click **Add a policy**.
-    - Set the **Action** to **Bypass**.
-    - Give it a name like `Allow Enrolled WARP Devices`.
-    - Create an **Include** rule with the **Selector** set to `WARP`.
-3.  **Order Your Policies:** Drag this new Bypass policy to the **top of the list (Order #1)**. This ensures it's evaluated first.
-4.  **(Optional) Create a Fallback:** Keep your second policy (Order #2) as an "Allow" rule that requires an Email OTP. This will be your fallback for browser access.
-
-#### Step 4: Verification
-
-1.  With WARP connected on your phone, open a browser and go to `https://cloudflare.com/cdn-cgi/trace`. You should see `warp=on`.
-2.  Open the Nextcloud app. It should connect instantly without a login prompt.
-3.  On a computer without WARP, try to access your Nextcloud domain. You should see the Cloudflare email login page.
+For a detailed, general-purpose guide on setting up WARP for secure application access, please refer to the [Zero Trust Security with Cloudflare WARP](../zero-trust-security.md) documentation.
 
 ---
 

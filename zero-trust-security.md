@@ -78,3 +78,53 @@ Create different policies for different user groups:
 - **Contractors**: Time-limited access with additional restrictions
 
 > **🔐 Important**: Zero Trust is now protecting your Proxmox access. Only users with authorized email addresses can access the web interface.
+
+---
+
+## 🚀 Secure Application Access with Cloudflare WARP
+
+This guide explains how to set up Cloudflare's WARP client to provide secure, seamless access to your self-hosted services without exposing any ports on your firewall. This method is ideal for mobile and desktop applications that may not handle browser-based authentication prompts well.
+
+### How It Works
+
+The WARP client creates a secure tunnel from a user's device directly to Cloudflare's network. By creating specific Access policies, you can grant trusted devices running WARP direct, passwordless access to your internal applications, while still protecting them from the public internet.
+
+### Step 1: Enable WARP Checks in Zero Trust
+
+1.  **Enable the Network Proxy:**
+    - In your Zero Trust dashboard, go to **Settings > Network**.
+    - Ensure that **Proxy** is enabled.
+
+2.  **Activate the WARP Client Check:**
+    - Go to **Settings > WARP Client**.
+    - Under **WARP client checks**, click **Add new**.
+    - Select "WARP" and give it a name like `WARP Check`.
+
+3.  **Set Up Device Enrollment Rules:**
+    - Go to **Settings > WARP Client** and click **Manage** under **Device enrollment**.
+    - Add a rule to allow your email address (or your users' emails) to enroll devices.
+
+### Step 2: Set up the WARP Client on Your Device
+
+1.  **Install the App:** Download the "**1.1.1.1: Faster Internet**" app on your mobile or desktop device.
+2.  **Log in to Zero Trust:**
+    - In the app, go to **Settings > Account > Login with Cloudflare for Teams**.
+    - Enter your organization's team name (found under **Settings > General** in the Zero Trust dashboard).
+    - Complete the one-time login with your email.
+
+### Step 3: Create the Access Policy for Your Application
+
+1.  In Zero Trust, go to **Access > Applications** and find the application you want to secure.
+2.  **Create a "Bypass for WARP" Policy:**
+    - Click **Add a policy**.
+    - Set the **Action** to **Bypass**.
+    - Give it a name like `Allow Enrolled WARP Devices`.
+    - Create an **Include** rule with the **Selector** set to `WARP`.
+3.  **Order Your Policies:** Drag this new Bypass policy to the **top of the list (Order #1)**. This ensures it's evaluated before any other rules.
+4.  **(Optional) Create a Fallback:** Keep a second policy (Order #2) as an "Allow" rule that requires an Email OTP or another identity provider. This will serve as a fallback for browser access on devices without WARP.
+
+### Step 4: Verification
+
+1.  With the WARP client connected on your device, open a browser and go to `https://cloudflare.com/cdn-cgi/trace`. You should see `warp=on`.
+2.  Open the application you secured (e.g., the Nextcloud app, a web dashboard). It should connect instantly without a login prompt.
+3.  On a computer without WARP, try to access the same application. You should be blocked or see your fallback authentication method (e.g., the Cloudflare email login page).
