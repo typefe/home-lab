@@ -12,6 +12,7 @@ This comprehensive guide will walk you through building a complete home lab infr
 - [PVE Bind-Mount Guide](./bind-mount.md)
 - [Basic Security and SSH Configuration](./basic-security-and-ssh.md)
 - [Network Architecture and pfSense Setup](./network-and-pfsense.md)
+- [OPNsense PPPoE & VLAN Setup](./virtual-pppoe-router.md)
 - [Remote Access with Cloudflare Tunnels](./remote-access-cloudflare.md)
 - [Zero Trust Security Implementation](./zero-trust-security.md)
 - [Securing Services with mTLS](./mTLS-cert.md)
