@@ -12,6 +12,8 @@ This guide details the setup of a self-hosted Nextcloud instance within a Proxmo
 - [Part 6: Nextcloud Configuration (`config.php`)](#part-6-nextcloud-configuration-configphp)
 - [Part 7: Secure Remote Access with Cloudflare](#part-7-secure-remote-access-with-cloudflare)
 - [Part 8: Performance Tuning and Maintenance](#part-8-performance-tuning-and-maintenance)
+- [Part 9: Updating and Upgrading Nextcloud](#part-9-updating-and-upgrading-nextcloud)
+- [Part 10: Troubleshooting and Advanced Maintenance](#part-10-troubleshooting-and-advanced-maintenance)
 
 ---
 
@@ -529,3 +531,137 @@ Caching is the most effective way to improve Nextcloud's performance.
     ```bash
     systemctl restart php8.2-fpm
     ```
+
+---
+
+## Part 9: Updating and Upgrading Nextcloud
+
+#### Step 1: Run the CLI Updater
+
+Log into your Nextcloud LXC terminal. You will use the same `su -s /bin/bash www-data -c` syntax used for your maintenance tasks to ensure the updater runs with the correct web server permissions.
+
+```bash
+# Navigate to the updater directory
+cd /var/www/nextcloud/updater
+
+# Execute the PHP updater script as the www-data user
+su -s /bin/bash www-data -c 'php updater.phar'
+```
+
+#### Step 2: Sequential Version Upgrades
+
+Nextcloud cannot skip major versions. To go from v31 to v33, you must upgrade to v32 first.
+
+Run the built-in updater sequentially:
+
+```bash
+cd /var/www/nextcloud/updater
+
+# Run this command TWICE (Once for v32, then again for v33)
+su -s /bin/bash www-data -c 'php updater.phar'
+```
+
+> **Note:** Answer `N` to keeping maintenance mode active, and `Y` to starting the database migrations.
+
+#### Step 3: Upgrading to PHP 8.3
+
+Nextcloud 33 deprecates PHP 8.2. Add the Sury repository and install PHP 8.3 with all required modules.
+
+```bash
+# Add the repository
+apt install -y curl apt-transport-https lsb-release ca-certificates
+curl -sSLo /usr/share/keyrings/deb.sury.org-php.gpg https://packages.sury.org/php/apt.gpg
+sh -c 'echo "deb [signed-by=/usr/share/keyrings/deb.sury.org-php.gpg] https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/php.list'
+apt update
+
+# Install PHP 8.3 and extensions
+apt install -y php8.3-fpm php8.3-cli php8.3-gd php8.3-mbstring \
+    php8.3-pgsql php8.3-curl php8.3-xml php8.3-zip \
+    php8.3-intl php8.3-bcmath php8.3-gmp php8.3-redis \
+    php8.3-apcu php8.3-imagick imagemagick libmagickcore-6.q16-6-extra
+
+# Update Default PHP Alternative
+update-alternatives --set php /usr/bin/php8.3
+```
+
+Update your Nginx configuration to point to the new socket:
+
+```bash
+# Edit /etc/nginx/sites-available/nextcloud
+# Change: server unix:/run/php/php8.2-fpm.sock;
+# To:     server unix:/run/php/php8.3-fpm.sock;
+
+nginx -t && systemctl reload nginx
+```
+
+#### Step 4: PHP Optimizations & Fixes
+
+Reapply standard Nextcloud environment configurations to the new PHP 8.3 files.
+
+1.  **Memory Limit (FPM & CLI):** Edit both `/etc/php/8.3/fpm/php.ini` and `/etc/php/8.3/cli/php.ini` and set: `memory_limit = 512M`.
+2.  **CLI APCu Enablement:** Edit `/etc/php/8.3/cli/php.ini` and add to the bottom: `apc.enable_cli=1`.
+3.  **OPcache Settings:** Edit `/etc/php/8.3/fpm/php.ini` (or the specific `opcache.ini` file) and ensure:
+    ```ini
+    opcache.enable=1
+    opcache.interned_strings_buffer=16
+    ```
+4.  **System Environment Variables:** Edit `/etc/php/8.3/fpm/pool.d/www.conf` and add to the bottom: `env[PATH] = /usr/local/bin:/usr/bin:/bin`.
+
+Restart PHP-FPM to apply all changes:
+```bash
+systemctl restart php8.3-fpm
+```
+
+#### Step 5: Cache Reconfiguration (APCu + Redis)
+
+To prevent CLI split-brain errors and improve performance, use APCu for local caching and Redis for file locking.
+
+Edit `/var/www/nextcloud/config/config.php`:
+```php
+  'memcache.local' => '\\OC\\Memcache\\APCu',
+  'memcache.locking' => '\\OC\\Memcache\\Redis',
+```
+
+#### Step 6: Database Maintenance
+
+Apply necessary post-upgrade database schema changes using the explicit `php8.3` binary to prevent environment conflicts.
+
+```bash
+# Enable Maintenance Mode
+su -s /bin/bash www-data -c 'php8.3 /var/www/nextcloud/occ maintenance:mode --on'
+
+# Add Missing Indices
+su -s /bin/bash www-data -c 'php8.3 /var/www/nextcloud/occ db:add-missing-indices'
+
+# Run Mimetype Migrations
+su -s /bin/bash www-data -c 'php8.3 /var/www/nextcloud/occ maintenance:repair --include-expensive'
+
+# Disable Maintenance Mode
+su -s /bin/bash www-data -c 'php8.3 /var/www/nextcloud/occ maintenance:mode --off'
+```
+
+---
+
+## Part 10: Troubleshooting and Advanced Maintenance
+
+#### Step 7: Fixing Code Integrity (Draw.io Artifacts)
+
+If older apps (like Draw.io) injected unauthorized files into the core directory, the integrity check will fail. Clean the directory and restore the affected core files.
+
+```bash
+# 1. Remove injected SVG artifacts
+rm /var/www/nextcloud/core/img/filetypes/drawio.svg
+rm /var/www/nextcloud/core/img/filetypes/dwb.svg
+
+# 2. Restore modified JS files from a pristine archive
+cd /tmp
+wget https://download.nextcloud.com/server/releases/latest-33.zip
+unzip -j latest-33.zip nextcloud/core/js/mimetypelist.js -d /tmp/
+cp /tmp/mimetypelist.js /var/www/nextcloud/core/js/
+chown www-data:www-data /var/www/nextcloud/core/js/mimetypelist.js
+rm latest-33.zip mimetypelist.js
+
+# 3. Rescan to clear the warning
+su -s /bin/bash www-data -c 'php8.3 /var/www/nextcloud/occ integrity:check-core'
+```
+
