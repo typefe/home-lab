@@ -83,13 +83,18 @@ Create different policies for different user groups:
 
 ## 🚀 Secure Application Access with Cloudflare WARP
 
-This guide explains how to set up Cloudflare's WARP client to provide secure, seamless access to your self-hosted services without exposing any ports on your firewall. This method is ideal for mobile and desktop applications that may not handle browser-based authentication prompts well.
+This guide explains how to set up Cloudflare's WARP client to provide secure, seamless access to your self-hosted services. By using **Device Authentication Identity**, you can allow trusted, enrolled devices to access applications without an OTP prompt, while still maintaining full identity-based security.
 
 ### How It Works
 
-The WARP client creates a secure tunnel from a user's device directly to Cloudflare's network. By creating specific Access policies, you can grant trusted devices running WARP direct, passwordless access to your internal applications, while still protecting them from the public internet.
+We use **Device Authentication Identity** to provide seamless access. When a user is logged into the WARP client on an enrolled device, Cloudflare shares the user's identity with the Access application. This allows the user to skip the browser-based OTP prompt as long as their WARP session is valid, maintaining full security without extra login steps.
 
-### Step 1: Enable WARP Checks in Zero Trust
+**The Rule of Thumb:**
+- **Logged into WARP + Device Authentication Identity enabled** → No OTP prompt (seamless access).
+- **Not logged into WARP / Session expired** → Normal Access login page with OTP.
+- **WARP connected but Device Authentication Identity disabled** → OTP prompt required every time.
+
+### Step 1: Enable WARP Checks and Enrollment
 
 1.  **Enable the Network Proxy:**
     - In your Zero Trust dashboard, go to **Settings > Network**.
@@ -104,27 +109,37 @@ The WARP client creates a secure tunnel from a user's device directly to Cloudfl
     - Go to **Settings > WARP Client** and click **Manage** under **Device enrollment**.
     - Add a rule to allow your email address (or your users' emails) to enroll devices.
 
-### Step 2: Set up the WARP Client on Your Device
+### Step 2: Enable Device Authentication Identity (Global)
+
+This setting allows Cloudflare to use the WARP client's login for application authentication.
+
+1.  Go to **Settings > WARP Client**.
+2.  Click **Manage** under **Device enrollment**.
+3.  Go to the **Login methods** tab.
+4.  Find **Device authentication identity** and click **Edit**.
+5.  Enable the toggle for **Device authentication identity**.
+6.  Set a **Session duration** (e.g., 24 hours or 7 days). This determines how long the "silent" authentication remains valid.
+
+### Step 3: Configure the Access Application
+
+You must enable the identity sharing for each specific application you want to access seamlessly.
+
+1.  In Zero Trust, go to **Access > Applications** and edit your application.
+2.  Go to the **Authentication** tab.
+3.  **Disable Binding Cookie:** Ensure "Binding Cookie" is **Disabled**. Device authentication identity will NOT work if Binding Cookie is enabled.
+4.  **Enable Device Authentication Identity:** Scroll down and ensure the **Device authentication identity** toggle is turned **ON**.
+5.  Save the application.
+
+### Step 4: Set up the WARP Client on Your Device
 
 1.  **Install the App:** Download the "**1.1.1.1: Faster Internet**" app on your mobile or desktop device.
 2.  **Log in to Zero Trust:**
     - In the app, go to **Settings > Account > Login with Cloudflare for Teams**.
-    - Enter your organization's team name (found under **Settings > General** in the Zero Trust dashboard).
+    - Enter your organization's team name.
     - Complete the one-time login with your email.
 
-### Step 3: Create the Access Policy for Your Application
+### Step 5: Verification
 
-1.  In Zero Trust, go to **Access > Applications** and find the application you want to secure.
-2.  **Create a "Bypass for WARP" Policy:**
-    - Click **Add a policy**.
-    - Set the **Action** to **Bypass**.
-    - Give it a name like `Allow Enrolled WARP Devices`.
-    - Create an **Include** rule with the **Selector** set to `WARP`.
-3.  **Order Your Policies:** Drag this new Bypass policy to the **top of the list (Order #1)**. This ensures it's evaluated before any other rules.
-4.  **(Optional) Create a Fallback:** Keep a second policy (Order #2) as an "Allow" rule that requires an Email OTP or another identity provider. This will serve as a fallback for browser access on devices without WARP.
-
-### Step 4: Verification
-
-1.  With the WARP client connected on your device, open a browser and go to `https://cloudflare.com/cdn-cgi/trace`. You should see `warp=on`.
-2.  Open the application you secured (e.g., the Nextcloud app, a web dashboard). It should connect instantly without a login prompt.
-3.  On a computer without WARP, try to access the same application. You should be blocked or see your fallback authentication method (e.g., the Cloudflare email login page).
+1.  **With WARP connected:** Open a browser and go to your application URL. It should load immediately without an OTP prompt.
+2.  **Check Identity:** Go to `https://<your-team-name>.cloudflareaccess.com/cdn-cgi/access/tokens` to see your active session and verify it's associated with your email.
+3.  **Without WARP:** Disconnect WARP or try from a different device. You should see the standard Cloudflare login page requesting an OTP.

@@ -94,8 +94,9 @@ Ensure the mTLS policy is at the top of the chain to prioritize certificate-base
 | Order | Action       | Selector                            | Description                                                |
 | :---- | :----------- | :---------------------------------- | :--------------------------------------------------------- |
 | 🥇 #1  | Service Auth | Valid Certificate (CN: `my-laptop`) | Grants immediate access for valid mTLS cert; no OTP / IdP. |
-| 🥈 #2  | Bypass       | WARP client                         | Allows enrolled WARP devices; no OTP.                      |
-| 🥉 #3  | Allow        | Everyone                            | Fallback → triggers normal OTP / IdP login.                |
+| 🥈 #2  | Allow        | Everyone                            | Fallback → triggers normal OTP / IdP login.                |
+
+> **💡 Pro Tip**: For seamless access on WARP-enrolled devices, enable **Device Authentication Identity** on your application settings. This allows WARP to share your identity with Cloudflare Access, removing the OTP prompt for trusted devices while still verifying your user account.
 
 
 After completing these steps, visiting a protected site without the certificate will result in an error, while access with the certificate will succeed seamlessly.
