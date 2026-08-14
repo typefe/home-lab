@@ -19,6 +19,14 @@ This comprehensive guide will walk you through building a complete home lab infr
 - [Maintenance and Logging](./maintenance-and-logging.md)
 - [Monitoring Your Home Lab](./monitoring.md)
 
+**Advanced Networking (optional deep-dives):**
+- [Bare-Metal Router Performance with PCI Passthrough](./pci-passthrough-router.md)
+- [Replacing Your ISP's ONT with a Rooted GPON SFP Module](./gpon-sfp-ont-replacement.md)
+- [Wi-Fi Access Point via PCI Passthrough + OpenWrt VM](./wifi-ap-pci-passthrough.md)
+- [Segmenting LAN and Service Networks with OPNsense](./network-segmentation-opnsense.md)
+- [Local HTTPS Access to Self-Hosted Services (Split-DNS + Virtual IPs)](./local-https-split-dns.md)
+- [Local Reverse Proxy with Caddy](./caddy.md)
+
 ## 🛠️ Services
 
 Here are the services I am running in my home lab. Each service has its own installation guide.

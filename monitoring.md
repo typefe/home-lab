@@ -420,7 +420,7 @@ receivers:
       <b>Details:</b>
       {{ range .Alerts -}}
       • <b>System:</b> {{ if .Labels.name }}{{ .Labels.name }}{{ else }}{{ .Labels.instance }}{{ end }}
-      • <b>Started:</b> {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+      • <b>Started:</b> {{ .StartsAt.Local.Format "2006-01-02 15:04:05" }}
       • {{ .Annotations.description }}
 
       {{ end -}}
@@ -434,8 +434,8 @@ receivers:
       <b>Details:</b>
       {{ range .Alerts }}
       • <b>System:</b> {{ if .Labels.name }}{{ .Labels.name }}{{ else }}{{ .Labels.instance }}{{ end }}
-      • <b>Started:</b> {{ .StartsAt.Format "2006-01-02 15:04:05" }}
-      • <b>Ended:</b> {{ .EndsAt.Format "2006-01-02 15:04:05" }}
+      • <b>Started:</b> {{ .StartsAt.Local.Format "2006-01-02 15:04:05" }}
+      • <b>Ended:</b> {{ .EndsAt.Local.Format "2006-01-02 15:04:05" }}
         {{ if .Annotations.description_resolved }}
       {{ .Annotations.description_resolved -}}
         {{ else }}
@@ -444,6 +444,8 @@ receivers:
       {{ end -}}
       {{ end -}}
 ```
+
+> **📝 Note on timestamps:** the template above already calls `.Local` before `.Format` on every `.StartsAt`/`.EndsAt` field — don't remove it. Alertmanager receives alert timestamps from Prometheus in UTC, and Go's `time.Time` type keeps that original UTC location attached. Setting your container's system timezone (`timedatectl set-timezone <Your/Timezone>`) is **not enough on its own** — a bare `{{ .StartsAt.Format "..." }}` still prints UTC regardless of the system clock, because `.Format` renders the timestamp in whatever location is already attached to it, not the system's local one. Only calling `.Local` first actually converts it. This applies to any Go-templated timestamp, not just Alertmanager — the same gotcha will bite a custom exporter or any other `time.Time` field rendered through a Go template.
 
 #### 6. Start the Monitoring Stack
 ```bash
