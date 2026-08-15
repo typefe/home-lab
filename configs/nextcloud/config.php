@@ -1,8 +1,8 @@
 <?php
 $CONFIG = array (
   'instanceid' => 'oc1h20xthd9t',
-  'passwordsalt' => '2Bk6l+yMmUuwWvWM8vWxHUC1lwsDbU',
-  'secret' => 'MSx1c64xdKVYzx+8+Mlh9kfk72qaiv7YFLQcW3JUwIksDjLl',
+  'passwordsalt' => 'your-generated-passwordsalt-here',
+  'secret' => 'your-generated-secret-here',
   'server_name' => 'cloud.typefe.pro',
   'trusted_domains' => 
   array (
@@ -29,7 +29,7 @@ $CONFIG = array (
   'dbport' => '',
   'dbtableprefix' => 'oc_',
   'dbuser' => 'nextcloud_user',
-  'dbpassword' => 'BzXqO16^H$',
+  'dbpassword' => 'your-db-password-here',
   'installed' => true,
   'maintenance' => false,
   'app_install_overwrite' => 
