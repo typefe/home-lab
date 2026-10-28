@@ -192,7 +192,10 @@ uci set wireless.radio0.country='<your two-letter country code>'
 uci set wireless.radio0.band='5g'
 uci set wireless.radio0.channel='36'
 uci set wireless.radio0.htmode='HE80'
+uci set wireless.radio0.noscan='1'
 ```
+
+> **Why `noscan='1'` on 5GHz:** by default hostapd runs a 40MHz-coexistence scan at start-up and, if it sees neighbouring beacons on the secondary channel, **swaps its primary and secondary channel** (`logread` shows `Switch own primary and secondary channel to get secondary channel with no Beacons from other BSSes`). The AP then quietly runs on e.g. channel 40 while your config says 36. That is a legal 80MHz layout, but it is not what you configured and it makes the channel unpredictable between restarts. The coexistence rule exists for 2.4GHz; on 5GHz it only gets in the way, so turn it off. Check what you really got with `iw dev <ap-interface> info` (look at the `channel` line).
 
 ```bash
 # 6GHz — highest throughput, shortest range; PSC channels (e.g. 37) get priority scanning from phones
@@ -247,7 +250,146 @@ A more drastic fallback (loses WPA3 entirely) is dropping `encryption` from `sae
 
 > This `wifi reload` will briefly disconnect every currently-associated client — expected, not a new problem.
 
-## 10 — Troubleshooting Table
+## 10 — Known Issue: Silent "Bad State" and the Nightly Restart
+
+After weeks of flawless operation, the AP can drop into a state where it *looks* healthy but clients intermittently cannot connect or keep dropping. It clears completely after a full VM stop/start and then stays good for a long time. This is a **driver/firmware state problem of the passed-through chip, not a configuration or password problem** — the same config worked for weeks before and works again right after the restart.
+
+### 10.1 — How to recognise it (and tell it apart from a real wrong password)
+
+| Where you look | What you see in this bad state |
+|---|---|
+| Client (NetworkManager / Android) | "Password incorrect" / "authentication problem" even though the password is right; connecting works again later by itself |
+| Client `wpa_supplicant` | `4-Way Handshake failed - pre-shared key may be incorrect` with `reason=15`. **This text is printed for *any* handshake timeout**, not only for a wrong key — don't trust it |
+| Healthy Intel client, already connected | Drops every few seconds with `reason=4 locally_generated=1`; kernel log shows `iwlwifi: missed beacons exceeds threshold` — the AP stopped sending beacons |
+| AP `hostapd` | `sending 1/4 msg of 4-Way Handshake`, then `EAPOL-Key timeout` ×4 and `PTKSTART: Retry limit 4 reached` — and **never** `received EAPOL-Key frame (2/4 Pairwise)`; idle phones get `disassociated due to inactivity` |
+| AP `dmesg`, `hostapd` status, `iw dev` | **All look normal** — no driver error, hostapd says `ENABLED`. That silence is the signature |
+
+A *real* wrong password looks different: hostapd **does** receive the 2/4 message and logs an MIC failure / `AP-STA-POSSIBLE-PSK-MISMATCH`. To see the handshake steps, temporarily raise hostapd's log level on the radio, then remove it again:
+
+```bash
+uci set wireless.radio0.log_level='0'     # 0 = full debug; default is 2
+uci commit wireless && wifi reload
+logread | grep -E "received EAPOL-Key|Retry limit|POSSIBLE-PSK"
+# when done:
+uci delete wireless.radio0.log_level && uci commit wireless && wifi reload
+```
+
+### 10.2 — What does *not* work (don't repeat these)
+
+- `wifi reload`, `rmmod`/`modprobe`, or a guest-internal reboot — none of them resets the card's firmware state.
+- Flipping the driver's power-management switches **live** (`echo 0 > /sys/kernel/debug/ieee80211/phy*/mt76/runtime-pm` and `.../deep-sleep`). In our case a beacon-loss storm began 16 seconds after doing this, switching them back did not stop it, and only a full VM stop/start did. Whether the switch caused it is unproven — but it is a risky thing to poke at on a live AP.
+- Re-entering or changing the Wi-Fi password: it was never wrong.
+
+### 10.3 — The fix: a full VM stop/start (what actually clears it)
+
+Run on the **Proxmox host**. The shutdown closes the passthrough device, which resets the PCIe function; the start brings the card up with fresh firmware state:
+
+```bash
+qm shutdown 900 --timeout 60 --forceStop 1 && sleep 3 && qm start 900
+```
+
+> If you administer the host over this very Wi-Fi, the command kills your own SSH session. Run it detached: `nohup sh -c 'qm shutdown 900 --timeout 60 --forceStop 1; sleep 3; qm start 900' >/root/ap-restart.log 2>&1 &`
+
+The whole cycle takes about 15 seconds for the VM and roughly half a minute until clients are back.
+
+### 10.4 — Prevent it: restart the AP VM every night
+
+Because the bad state builds up with uptime, a scheduled restart in the small hours stops it before it ever shows. This only affects Wi-Fi (about 30 seconds); wired devices and all other guests are untouched.
+
+**The script** — `/usr/local/sbin/restart-wifi-ap-vm.sh` on the Proxmox host:
+
+```sh
+#!/bin/sh
+# Full stop/start of the OpenWrt Wi-Fi AP VM.
+# A plain "wifi reload" or module reload does NOT reset the passed-through card's
+# firmware state; a full VM stop/start does (the PCIe function is reset on close).
+# Set DRY_RUN=1 to only report what would happen.
+VMID="${VMID:-900}"
+LOCK=/run/lock/restart-wifi-ap-vm.lock
+
+exec 9>"$LOCK"
+flock -n 9 || { echo "another restart is already running, skipping"; exit 0; }
+
+if ! qm status "$VMID" | grep -q 'status: running'; then
+    echo "VM $VMID is not running, leaving it alone"
+    exit 0
+fi
+
+if [ "$DRY_RUN" = 1 ]; then
+    echo "DRY RUN: would stop and start VM $VMID"
+    exit 0
+fi
+
+echo "stopping VM $VMID"
+qm shutdown "$VMID" --timeout 60 --forceStop 1
+sleep 3
+echo "starting VM $VMID"
+qm start "$VMID"
+sleep 2
+
+if qm status "$VMID" | grep -q 'status: running'; then
+    echo "VM $VMID is running again"
+else
+    echo "VM $VMID did NOT come back up" >&2
+    exit 1
+fi
+```
+
+Why each guard exists: `flock` prevents two overlapping runs; the `running` check means a VM you stopped on purpose is **not** started behind your back; the final check makes systemd mark the run as *failed* if the VM doesn't return, so you can see it.
+
+**The service** — `/etc/systemd/system/wifi-ap-restart.service`:
+
+```ini
+[Unit]
+Description=Restart the OpenWrt Wi-Fi AP VM (clears the silent bad state)
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/restart-wifi-ap-vm.sh
+TimeoutStartSec=180
+```
+
+**The timer** — `/etc/systemd/system/wifi-ap-restart.timer`:
+
+```ini
+[Unit]
+Description=Nightly restart of the OpenWrt Wi-Fi AP VM
+
+[Timer]
+OnCalendar=*-*-* 04:30:00
+AccuracySec=10s
+Persistent=false
+
+[Install]
+WantedBy=timers.target
+```
+
+`Persistent=false` is deliberate: if the host happened to be off at 04:30, you do **not** want an extra restart the moment it boots. `OnCalendar` uses the host's local time zone — confirm it with `timedatectl` first.
+
+**Enable and verify:**
+
+```bash
+chmod 755 /usr/local/sbin/restart-wifi-ap-vm.sh
+systemctl daemon-reload
+systemctl enable --now wifi-ap-restart.timer
+
+systemd-analyze verify /etc/systemd/system/wifi-ap-restart.service /etc/systemd/system/wifi-ap-restart.timer
+systemctl list-timers wifi-ap-restart.timer        # → NEXT should read tonight/tomorrow 04:30
+systemd-run --wait --pipe -E DRY_RUN=1 /usr/local/sbin/restart-wifi-ap-vm.sh
+# → "DRY RUN: would stop and start VM 900" — proves the script runs under systemd with the right PATH, without restarting anything
+```
+
+**Check it ran, and run it by hand when needed:**
+
+```bash
+journalctl -u wifi-ap-restart.service --since yesterday   # → "stopping VM…", "VM … is running again"
+systemctl start wifi-ap-restart.service                   # immediate manual restart
+systemctl disable --now wifi-ap-restart.timer             # turn the schedule off
+```
+
+> A nightly restart is a **workaround, not a root-cause fix**. If the bad state ever appears in the middle of the day, use the manual command above, and consider tracking upstream (see Sources) or trying a different firmware build (Step 6).
+
+## 11 — Troubleshooting Table
 
 | Symptom | Cause | Fix |
 |---|---|---|
@@ -260,9 +402,14 @@ A more drastic fallback (loses WPA3 entirely) is dropping `encryption` from `sae
 | AP won't start on 5GHz | A DFS channel was selected | Use a non-DFS channel (36–48 or 149–165) |
 | AP doesn't come back after a VM/host reboot | Known passthrough re-init bug on some Wi-Fi chipsets | Full VM stop/start first; if that doesn't help, reboot the Proxmox host itself |
 | Card shows up under its normal driver (not `vfio-pci`) after a host reboot | The vfio binding didn't survive — usually a missed `proxmox-boot-tool refresh` on UEFI hosts | Re-check Step 1, especially the boot-tool refresh step |
+| Clients say "wrong password" or drop every few seconds, but the password is right and AP logs/`dmesg` look clean | The silent driver/firmware bad state (hostapd sends 1/4, never gets 2/4; or beacons stop) | Step 10 — full VM stop/start, and the nightly restart timer to prevent it |
+| AP runs on a different channel than configured (e.g. 40 instead of 36) | hostapd's 40MHz-coexistence scan swapped primary/secondary channel | Step 8 — `uci set wireless.radio0.noscan='1'` on 5GHz |
 
 ---
 ### Sources
 - [OpenWrt Documentation](https://openwrt.org/docs/start)
 - [OpenWrt Forum — hostapd "excessive deauthenticated due to local deauth request"](https://forum.openwrt.org/t/how-to-solve-hostapd-excessive-deauthenticated-due-to-local-deauth-request/113135)
 - [kernel.org linux-firmware repository](https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/)
+- [openwrt/mt76 issue #1103 — mt7925e: first 4-way handshake after firmware init times out (EAPOL 2/4 never transmitted)](https://github.com/openwrt/mt76/issues/1103)
+- [openwrt/mt76 PR #1143 — mt7925: release the JOIN ROC before reporting the BSS connected](https://github.com/openwrt/mt76/pull/1143)
+- [OpenWrt Forum — MT7925 crashes in AP mode (Proxmox VM; "disassociated due to inactivity", fixed by a firmware update)](https://forum.openwrt.org/t/mt7925-crashes-in-ap-mode/231946)
